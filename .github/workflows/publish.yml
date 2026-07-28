@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: pypi
+      name: ctaug
       url: https://pypi.org/project/ctaug/
     steps:
       - name: Download build artifacts
