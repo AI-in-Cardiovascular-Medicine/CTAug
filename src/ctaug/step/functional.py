@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 import random
 from typing import List, Literal, Optional, Tuple, Union
@@ -101,6 +100,8 @@ def motion_core(
                 image = image[:image.shape[0] - move_value, :, :] if move_left else image[move_value:, :, :]
         elif move_index == 2:
             if move_left:
+                image[:, cut_off_position:, :image.shape[2] - move_value] = image[:, cut_off_position:, move_value:]
+            else:
                 image[:, cut_off_position:, move_value:] = image[:, cut_off_position:, :image.shape[2] - move_value]
             if cropped_value in ("zero", "mean"):
                 if move_left:

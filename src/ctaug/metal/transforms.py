@@ -11,6 +11,22 @@ from ctaug.metal.functional import (
     simulate_artifacts_unified,
 )
 
+ValueOrRange = Union[int, float, Tuple[float, float], Sequence[float]]
+
+
+def sample_value(value: ValueOrRange) -> Union[int, float]:
+    """Resolve a scalar-or-range argument of an artifact transform into a single value.
+
+    A scalar is used as-is; a ``(low, high)`` pair is sampled per call, with integer bounds
+    drawing an integer.
+    """
+    if isinstance(value, (int, float)):
+        return value
+    low, high = value
+    if isinstance(low, int) and isinstance(high, int):
+        return random.randint(low, high)
+    return random.uniform(low, high)
+
 
 class MetalTransform(DictTransform):
     """Insert one or more 2D metal implants (circle/ellipse/rectangle) and simulate streak artifacts.
@@ -21,14 +37,15 @@ class MetalTransform(DictTransform):
     """
 
     def __init__(self, spacing, key_origin: str = "image", key_target: str = "image", max_n_specs: int = 2,
-                max_severity: float = 0.9, 
+                severity: ValueOrRange = (0.1, 0.9), intensity: ValueOrRange = (1000, 5000),
                 exclude_labels: Union[Sequence, int, None] = (0,), include_labels: Union[Sequence, int, None] = None, 
                 verbose: bool = False, skip_minus_one_selected_label: bool = True):
         self.key_target = key_target
         self.key_origin = key_origin
         self.spacing = spacing
         self.max_n_specs = max_n_specs
-        self.max_severity = max_severity
+        self.severity = severity
+        self.intensity = intensity
         self.exclude_labels = exclude_labels
         self.include_labels = include_labels
         self.verbose = verbose
@@ -55,7 +72,7 @@ class MetalTransform(DictTransform):
                 do_unsqueeze = True
             if len(data.shape) > 3:
                 raise ValueError(f"Input data shape is more than 3 or more than 4 while first one is 1, data shape: {data.shape}")
-        severity = random.uniform(0.1, self.max_severity)
+        severity = sample_value(self.severity)
         data_shape = data.shape
         data_min, data_max = data.min(), data.max()
 
@@ -76,7 +93,7 @@ class MetalTransform(DictTransform):
                     "slices": list(range(start_slice, end_slice)),
                     "center_px": (int(center[0]), int(center[1])),
                     "radius_mm": radius,
-                    "intensity": random.randint(1000, 5000),
+                    "intensity": sample_value(self.intensity),
                 }
                 if selected_label != -1:
                     selected_labels.append(selected_label)
@@ -114,14 +131,16 @@ class WireTransform(DictTransform):
     """
 
     def __init__(self, spacing, key_origin: str = "image", key_target: str = "image", max_n_specs: int = 2,
-                max_severity: float = 0.9, exclude_labels: Union[Sequence, int, None] = (0,),   
-                include_labels: Union[Sequence, int, None] = None,  verbose: bool = False,
+                severity: ValueOrRange = (0.1, 0.9), intensity: ValueOrRange = (1000, 5000),
+                exclude_labels: Union[Sequence, int, None] = (0,),
+                include_labels: Union[Sequence, int, None] = None, verbose: bool = False,
                 skip_minus_one_selected_label: bool = True):
         self.key_target = key_target
         self.key_origin = key_origin
         self.spacing = spacing
         self.max_n_specs = max_n_specs
-        self.max_severity = max_severity
+        self.severity = severity
+        self.intensity = intensity
         self.exclude_labels = exclude_labels
         self.include_labels = include_labels
         self.verbose = verbose
@@ -149,7 +168,7 @@ class WireTransform(DictTransform):
             if len(data.shape) > 3:
                 raise ValueError(f"Input data shape is more than 3 or more than 4 while first one is 1, data shape: {data.shape}")
 
-        severity = random.uniform(0.1, self.max_severity)
+        severity = sample_value(self.severity)
         data_shape = data.shape
         data_min, data_max = data.min(), data.max()
 
@@ -175,7 +194,7 @@ class WireTransform(DictTransform):
                     "wire_radius_mm": random.uniform(0.01, 0.1),
                     "angle_range": (angle_start, angle_end),
                     "z_range_mm": [item * self.spacing[0] for item in z_range],
-                    "intensity": random.randint(1000, 5000),
+                    "intensity": sample_value(self.intensity),
                 }
                 if selected_label != -1:
                     selected_labels.append(selected_label)
@@ -213,14 +232,16 @@ class CalcificationTransform(DictTransform):
     """
 
     def __init__(self, spacing, key_origin: str = "image", key_target: str = "image", max_n_specs: int = 2,
-                max_severity: float = 0.9, exclude_labels: Union[Sequence, int, None] = (0,),   
+                severity: ValueOrRange = (0.1, 0.9), intensity: ValueOrRange = (1000, 5000),
+                exclude_labels: Union[Sequence, int, None] = (0,),
                 include_labels: Union[Sequence, int, None] = None, verbose: bool = False,
                 skip_minus_one_selected_label: bool = True):
         self.key_target = key_target
         self.key_origin = key_origin
         self.spacing = spacing
         self.max_n_specs = max_n_specs
-        self.max_severity = max_severity
+        self.severity = severity
+        self.intensity = intensity
         self.exclude_labels = exclude_labels
         self.include_labels= include_labels
         self.verbose = verbose
@@ -248,7 +269,7 @@ class CalcificationTransform(DictTransform):
             if len(data.shape) > 3:
                 raise ValueError(f"Input data shape is more than 3 or more than 4 while first one is 1, data shape: {data.shape}")
 
-        severity = random.uniform(0.1, self.max_severity)
+        severity = sample_value(self.severity)
         data_min, data_max = data.min(), data.max()
 
         n_specs = random.randint(1, max(1, self.max_n_specs))
@@ -264,7 +285,7 @@ class CalcificationTransform(DictTransform):
                     "type": "3d",
                     "center_mm": [float(item * self.spacing[index]) for index, item in enumerate(center)],
                     "radius_mm": (random.randint(2, 10), random.uniform(0.5, 2), random.uniform(0.5, 2)),
-                    "intensity": random.randint(1000, 5000),
+                    "intensity": sample_value(self.intensity),
                 }
                 if selected_label != -1:
                     selected_labels.append(selected_label)
@@ -299,21 +320,22 @@ class RandomArtifactTransform(DictTransform):
     """Randomly apply one of :class:`MetalTransform`, :class:`WireTransform`, or :class:`CalcificationTransform`."""
 
     def __init__(self, spacing, key_origin: str = "image", key_target: str = "image", max_n_specs: int = 2,
-                max_severity: float = 0.9, exclude_labels: Union[Sequence, int, None] = (0,),   
+                severity: ValueOrRange = (0.1, 0.9), intensity: ValueOrRange = (1000, 5000),
+                exclude_labels: Union[Sequence, int, None] = (0,),
                 include_labels: Union[Sequence, int, None] = None, verbose: bool = False,
                 skip_minus_one_selected_label: bool = True, exclude_class: Optional[Tuple[str, ...]] = None):
         self.exclude_class = exclude_class
         self.calcification = CalcificationTransform(
             spacing=spacing, key_origin=key_origin, key_target=key_target, max_n_specs=max_n_specs,
-            max_severity=max_severity, exclude_labels=exclude_labels, include_labels=include_labels, verbose=verbose,
+            severity=severity, intensity=intensity, exclude_labels=exclude_labels, include_labels=include_labels, verbose=verbose,
             skip_minus_one_selected_label=skip_minus_one_selected_label)
         self.metal = MetalTransform(
             spacing=spacing, key_origin=key_origin, key_target=key_target, max_n_specs=max_n_specs,
-            max_severity=max_severity, exclude_labels=exclude_labels, include_labels=include_labels, verbose=verbose,
+            severity=severity, intensity=intensity, exclude_labels=exclude_labels, include_labels=include_labels, verbose=verbose,
             skip_minus_one_selected_label=skip_minus_one_selected_label)
         self.wire = WireTransform(
             spacing=spacing, key_origin=key_origin, key_target=key_target, max_n_specs=max_n_specs,
-            max_severity=max_severity, exclude_labels=exclude_labels, include_labels=include_labels,verbose=verbose,
+            severity=severity, intensity=intensity, exclude_labels=exclude_labels, include_labels=include_labels,verbose=verbose,
             skip_minus_one_selected_label=skip_minus_one_selected_label)
 
     def __call__(self, **data_dict: Any) -> Dict[str, Any]:

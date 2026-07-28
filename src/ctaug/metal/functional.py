@@ -126,13 +126,17 @@ def mask_base_position_2d(mask: Optional[np.ndarray], data: np.ndarray, max_slic
     center = None
     z_start = z_end = None
     selected_label = -1
+    labels = []
     if mask is not None:
         crop_labels = set(np.unique(mask))
         if include_labels is not None:
-            labels = tuple(include_labels) if isinstance(include_labels, int) else include_labels
+            labels = (include_labels,) if isinstance(include_labels, int) else list(include_labels)
         elif exclude_labels is not None:
-            exclude_labels = tuple(exclude_labels) if isinstance(exclude_labels, int) else exclude_labels
+            exclude_labels = (exclude_labels,) if isinstance(exclude_labels, int) else exclude_labels
             labels = list(crop_labels - set(exclude_labels))
+        else:
+            # no filter given: every label present in the mask is eligible
+            labels = list(crop_labels)
         if labels:
             for _ in range(5):
                 try:
@@ -169,13 +173,17 @@ def mask_base_position_3d(mask: Optional[np.ndarray], data: np.ndarray,
     success = False
     center = None
     selected_label = -1
+    labels = []
     if mask is not None:
         crop_labels = set(np.unique(mask))
         if include_labels is not None:
-            labels = tuple(include_labels) if isinstance(include_labels, int) else include_labels
+            labels = (include_labels,) if isinstance(include_labels, int) else list(include_labels)
         elif exclude_labels is not None:
-            exclude_labels = tuple(exclude_labels) if isinstance(exclude_labels, int) else exclude_labels
+            exclude_labels = (exclude_labels,) if isinstance(exclude_labels, int) else exclude_labels
             labels = list(crop_labels - set(exclude_labels))
+        else:
+            # no filter given: every label present in the mask is eligible
+            labels = list(crop_labels)
         if labels:
             try:
                 selected_label = random.choice(labels)
