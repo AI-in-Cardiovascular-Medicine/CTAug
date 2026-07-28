@@ -45,61 +45,98 @@ Core installs `numpy`, `torch`, `scipy`, and `scikit-image`. The `monai` extra a
 
 ### Core (plain torch)
 
-Every transform is a dict-in/dict-out callable: it reads `data["image"]` (a `(Z, Y, X)` torch tensor), optionally `data["segmentation"]` (used to anchor artifact placement, and shifted alongside the image by the step transforms), and returns the augmented dict with the result written back plus a per-call `info` (or `<ClassName>_info`) entry describing what was sampled.
+Every transform is a dict-in/dict-out callable: it reads `data["image"]` (a `(Z, Y, X)` or `(1, Z, Y, X)` torch tensor or NumPy array), optionally `data["segmentation"]` (used to anchor artifact placement, and shifted alongside the image by the step transforms), and returns the augmented dict with the result written back plus a `<ClassName>_info` entry describing everything that was sampled. Output shape and container type (torch tensor or NumPy array) always match the input; the artifact transforms also preserve the input dtype, while the step transforms return `float32` because of their intensity rescaling.
+
+The snippets below are the calls from [`example/example_notebook.ipynb`](https://github.com/AI-in-Cardiovascular-Medicine/CTAug/blob/main/example/example_notebook.ipynb), trimmed to the transform itself.
+
+#### Artifact transforms — calcification, wire, metal
 
 ```python
-import torch
-from ctaug import (
-    RandomArtifactTransform,   # randomly applies Metal, Wire, or Calcification
-    StepMotionTransform,       # the step-and-shoot augmentation used in the paper
+from deep_utils import SITKUtils                 # pip install ctaug[example]
+from ctaug import CalcificationTransform, MetalTransform, WireTransform
+
+img_arr, img_itk = SITKUtils.get_array_img("10151662.nii.gz")        # (Z, Y, X)
+seg_arr, _ = SITKUtils.get_array_img("10151662_seg.nii.gz")
+
+augmentor = MetalTransform(
+    spacing=img_itk.GetSpacing()[::-1],   # CTAug wants (z, y, x); SimpleITK reports (x, y, z)
+    include_labels=(2, 3, 4),             # anchor placement inside these labels only
+    exclude_labels=None,                  # inverse of include_labels; default (0,), i.e. skip background
+    intensity=(7000, 8000),               # scalar or (low, high); default (1000, 5000)
+    severity=(0.9, 0.99),                 # streak strength; default (0.1, 0.9)
+    verbose=True,
 )
 
-image = torch.rand(1, 96, 160, 160) * 1000       # (C, Z, Y, X)
-segmentation = torch.randint(0, 5, (1, 96, 160, 160))
-
-artifact_aug = RandomArtifactTransform(spacing=(1.5, 1.0, 1.0), max_n_specs=2)
-out = artifact_aug(image=image, segmentation=segmentation)
-augmented_image = out["image"]
-
-motion_aug = StepMotionTransform()
-out = motion_aug(image=augmented_image, segmentation=segmentation)
-augmented_image, augmented_segmentation = out["image"], out["segmentation"]
+# the notebook adds a channel axis; a plain (Z, Y, X) array works too
+out = augmentor(image=img_arr[None, ...], segmentation=seg_arr[None, ...])
+augmented_image = out["image"][0]
+info = out["MetalTransform_info"]         # implant_specs, severity, spacing, selected_labels, ...
 ```
 
-Individual artifact transforms (`MetalTransform`, `WireTransform`, `CalcificationTransform`) and step transforms (`StepTransform`, `MotionTransform`, `StepMotionTransform`) are available the same way for finer-grained control, e.g. inside a custom augmentation pipeline (nnU-Net/batchgenerators, TorchIO, or your own training loop).
+`CalcificationTransform` and `WireTransform` take the same arguments; the notebook calls all three through one helper and leaves `intensity`/`severity` at their defaults for those two. `RandomArtifactTransform` picks one of the three per call (optionally with `exclude_class=("wire",)`), so its `info` lands under the **chosen** transform's key — `MetalTransform_info`, `WireTransform_info`, or `CalcificationTransform_info` — not under its own name.
+
+These three forward-project and reconstruct every affected slice, which is the expensive part; the notebook centre-crops to `(128, 256, 256)` first to keep the runtime sane.
+
+#### Step-and-shoot transforms
+
+```python
+from ctaug import MotionTransform, StepMotionTransform, StepTransform
+
+augmentor = StepMotionTransform(
+    cut_off_pixel_value_weight=(0.1, 1),  # offset relative to mean intensity; default (0.2, 0.6)
+    motion_move_range=(0.01, 0.1),        # fraction of the moved axis' extent; default (0.01, 0.015)
+)
+
+# no channel axis or torch conversion needed — a plain (Z, Y, X) array round-trips as-is
+out = augmentor(image=img_arr, segmentation=seg_arr)
+augmented_image = out["image"]
+augmented_segmentation = out["segmentation"]      # shifted by the same amount
+info = out["StepMotionTransform_info"]
+```
+
+These are cheap (no projection involved), so the notebook runs them on the full `(275, 512, 512)` volume. `StepTransform` takes only `cut_off_pixel_value_weight` and treats `segmentation` as optional; `MotionTransform` takes only `motion_move_range` and **requires** a segmentation, since it translates anatomy.
+
+Every transform can be dropped into a custom augmentation pipeline (nnU-Net/batchgenerators, TorchIO, or your own training loop) the same way. The notebook also shows replaying a saved `<ClassName>_info.json` through `ctaug.metal.functional.simulate_artifacts_unified` to reproduce or hand-edit a specific implant.
 
 ### MONAI
 
 With the `monai` extra installed, `ctaug.monai` exposes the same augmentations as standard MONAI dictionary transforms (`MapTransform` + `RandomizableTransform`), so they compose with `monai.transforms.Compose` like any other `*d` transform:
 
 ```python
-from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
-from ctaug.monai import RandomArtifactd, StepMotiond
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged
+from ctaug.monai import Calcificationd, Metald, StepMotiond, Wired
+
+spacing = (0.5, 0.36, 0.36)   # (Z, Y, X), in mm
 
 transforms = Compose([
     LoadImaged(keys=["image", "label"]),
     EnsureChannelFirstd(keys=["image", "label"]),
-    RandomArtifactd(keys=["image"], spacing=(1.5, 1.0, 1.0), label_key="label", prob=0.4),
-    StepMotiond(keys=["image"], label_key="label", prob=0.1),
+    # the paper's per-artifact probabilities, applied independently
+    Calcificationd(keys=["image"], spacing=spacing, label_key="label",
+                   include_labels=(2, 3, 4), prob=0.15),
+    Wired(keys=["image"], spacing=spacing, label_key="label",
+          include_labels=(2, 3, 4), prob=0.15),
+    Metald(keys=["image"], spacing=spacing, label_key="label",
+           include_labels=(2, 3, 4), prob=0.10),
+    StepMotiond(keys=["image"], label_key="label", prob=0.10),
 ])
 ```
 
-`Metald`, `Wired`, and `Calcificationd` are also available individually, mirroring the core transforms.
+`Calcificationd`, `Wired`, and `Metald` all take the same arguments (`max_n_specs`, `intensity`, `severity`, `exclude_labels`, `include_labels`, …), forwarded to the core transform. If you would rather draw *one* of the three per sample instead of rolling for each independently, swap them for a single `RandomArtifactd(keys=["image"], spacing=spacing, label_key="label", prob=0.4)`, optionally narrowed with `exclude_class=("wire",)`. `Stepd` and `Motiond` are likewise available as the two halves of `StepMotiond`.
 
 ## Example data
 
-The two example cases used below are attached to the [latest release](https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest) rather than committed to the repository. Download them into `example/` before running the notebook:
+The example case used below is attached to the [latest release](https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest) rather than committed to the repository. Download it into `example/` before running the notebook:
 
 ```bash
 cd example
-for case in 10151662 10151663; do
-  for suffix in "" "_seg"; do
-    wget "https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest/download/${case}${suffix}.nii.gz"
-  done
-done
+wget https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest/download/10151662.nii.gz
+wget https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest/download/10151662_seg.nii.gz
 ```
 
-Each case is an image plus its segmentation (`<case>.nii.gz` and `<case>_seg.nii.gz`). The notebook defaults to the first one.
+That is one image (`10151662.nii.gz`) plus its segmentation (`10151662_seg.nii.gz`), which is what the notebook expects.
+
+The full annotated dataset — **1020 cardiac CT cases** with segmentations — is available on [Hugging Face](https://huggingface.co/datasets/AI-CVM/Cardiac-CT), if you want to run the augmentations across more anatomy than this single scan.
 
 ## Examples on a real scan
 
@@ -245,7 +282,7 @@ Reading the `info` against the image:
 - **`cropped_value: 'zero'`** — within the displaced block, the 40-voxel strip vacated at the low-X edge is filled with zeros (alternatives: `'mean'`, `'cut'`, `'cut_resize'`, the last of which crops and resizes the volume back to its input shape instead of padding).
 - On top of that shift, an intensity step is applied at the *same* `cut_off_position` on the *same* axis, as in `StepTransform` — this is what makes the combined transform resemble a real gated-acquisition seam, where the slab boundary shows both a brightness jump and a misregistration. Its offset is drawn internally and is not reported in `info`.
 
-The output volume keeps the input's shape, dtype, and container type (torch tensor or NumPy array), with or without a leading channel axis; when a `segmentation` is passed it is shifted by the same amount so image and labels stay aligned.
+The output volume keeps the input's shape and container type (torch tensor or NumPy array), with or without a leading channel axis, though the step transforms return `float32` rather than the input dtype; when a `segmentation` is passed it is shifted by the same amount so image and labels stay aligned.
 
 ## Citation
 
