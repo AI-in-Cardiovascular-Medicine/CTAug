@@ -7,7 +7,7 @@ from ctaug.metal import (
 from ctaug.step import (
     MotionTransform,
     StepTransform,
-    StepTransform,
+    StepMotionTransform,
 )
 
 __version__ = "0.1.0"
@@ -19,5 +19,5 @@ __all__ = [
     "RandomArtifactTransform",
     "StepTransform",
     "MotionTransform",
-    "StepTransform",
+    "StepMotionTransform",
 ]
