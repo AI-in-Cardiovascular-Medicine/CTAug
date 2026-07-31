@@ -133,12 +133,12 @@ transforms = Compose([
 
 ## Example data
 
-The example case used below is attached to the [latest release](https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest) rather than committed to the repository. Download it into `example/` before running the notebook:
+The example case used below is attached to the [v0.1.0 release](https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/tag/v0.1.0) rather than committed to the repository. Download it into `example/` before running the notebook:
 
 ```bash
 cd example
-wget https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest/download/10151662.nii.gz
-wget https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/latest/download/10151662_seg.nii.gz
+wget https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/download/v0.1.0/10151662.nii.gz
+wget https://github.com/AI-in-Cardiovascular-Medicine/CTAug/releases/download/v0.1.0/10151662_seg.nii.gz
 ```
 
 That is one image (`10151662.nii.gz`) plus its segmentation (`10151662_seg.nii.gz`), which is what the notebook expects.
