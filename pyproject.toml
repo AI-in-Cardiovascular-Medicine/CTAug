@@ -39,7 +39,7 @@ dependencies = [
 monai = ["monai>=1.2"]
 test = ["pytest>=7.0"]
 # only needed to run example/example_notebook.ipynb (NIfTI/JSON I/O)
-example = ["deep_utils>=1.5.19", "SimpleITK>=2.2"]
+example = ["deep_utils>=1.6.0", "SimpleITK>=2.2"]
 
 [project.urls]
 Homepage = "https://github.com/AI-in-Cardiovascular-Medicine/CTAug"
