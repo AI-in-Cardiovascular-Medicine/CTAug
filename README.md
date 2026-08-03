@@ -54,10 +54,16 @@ The snippets below are the calls from [`example/example_notebook.ipynb`](https:/
 ```python
 from deep_utils import SITKUtils                 # pip install ctaug[example]
 from ctaug import CalcificationTransform, MetalTransform, WireTransform
-import SimpleITK as sitk
+import os
 
-img_arr, img_itk = SITKUtils.get_array_img("10151662.nii.gz")        # (Z, Y, X)
-seg_arr, _ = SITKUtils.get_array_img("10151662_seg.nii.gz")
+
+image_path = "10151662.nii.gz"
+segment_path = "10151662_seg.nii.gz"
+
+output_folder = "example"
+
+img_arr, img_itk = SITKUtils.get_array_img(image_path)        # (Z, Y, X)
+seg_arr, _ = SITKUtils.get_array_img(segment_path)
 
 augmentor = MetalTransform(
     spacing=img_itk.GetSpacing()[::-1],   # CTAug wants (z, y, x); SimpleITK reports (x, y, z)
@@ -73,11 +79,14 @@ out = augmentor(image=img_arr[None, ...], segmentation=seg_arr[None, ...])
 augmented_image = out["image"][0]
 info = out["MetalTransform_info"]         # implant_specs, severity, spacing, selected_labels, ...
 
-augmented_itk = sitk.GetImageFromArray(augmented_image)           # Converting an Array to a SimpleITK Image
-augmented_itk.CopyInformation(img_itk)                            # Copying geometric data from the original image
-sitk.WriteImage(augmented_itk, "./example/10151662_metal_aug.nii.gz")    # Save file
 
-print("Saved to ./example/10151662_metal_aug.nii.gz")
+
+file_name = os.path.basename(image_path).replace(".nii.gz", "")
+output_name = f"{file_name}_metal_aug.nii.gz"
+
+SITKUtils.save_sample(f"/{output_folder}/{output_name}", augmented_image, img=img_itk)
+
+print(f"Saved to ./{output_folder}/{file_name}")
 ```
 
 `CalcificationTransform` and `WireTransform` take the same arguments; the notebook calls all three through one helper and leaves `intensity`/`severity` at their defaults for those two. `RandomArtifactTransform` picks one of the three per call (optionally with `exclude_class=("wire",)`), so its `info` lands under the **chosen** transform's key — `MetalTransform_info`, `WireTransform_info`, or `CalcificationTransform_info` — not under its own name.
