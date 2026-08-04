@@ -88,6 +88,8 @@ SITKUtils.save_sample(f"/{output_folder}/{output_name}", augmented_image, img=im
 
 print(f"Saved to ./{output_folder}/{file_name}")
 ```
+* Note 1: For running this code you should: ```pip install ctaug[example]```
+* Note 2: You can download the sample files [here](https://github.com/AI-in-Cardiovascular-Medicine/CTAug#example-data).
 
 `CalcificationTransform` and `WireTransform` take the same arguments; the notebook calls all three through one helper and leaves `intensity`/`severity` at their defaults for those two. `RandomArtifactTransform` picks one of the three per call (optionally with `exclude_class=("wire",)`), so its `info` lands under the **chosen** transform's key — `MetalTransform_info`, `WireTransform_info`, or `CalcificationTransform_info` — not under its own name.
 
