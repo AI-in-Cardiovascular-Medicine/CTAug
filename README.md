@@ -1,5 +1,10 @@
 # CTAug
 
+[![PyPI version](https://img.shields.io/pypi/v/ctaug.svg)](https://pypi.org/project/ctaug/)
+[![Downloads](https://static.pepy.tech/badge/ctaug)](https://pepy.tech/project/ctaug)
+[![Downloads/month](https://img.shields.io/pypi/dm/ctaug.svg)](https://pypi.org/project/ctaug/)
+[![Python versions](https://img.shields.io/pypi/pyversions/ctaug.svg)](https://pypi.org/project/ctaug/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 **CTAug** is an open-source Python library of cardiac CT (CCT)–specific data augmentations, developed to improve the robustness of segmentation models to clinical image degradation. It was introduced as part of a unified framework for comprehensive cardiac CT segmentation and phenotyping (Mohammadi Kazaj et al., 2026).
 
