@@ -142,8 +142,8 @@ def mask_base_position_2d(mask: Optional[np.ndarray],
             labels = list(crop_labels)
         if labels:
             for _ in range(5):
+                selected_label = random.choice(labels)
                 try:
-                    selected_label = random.choice(labels)
                     zs, xs, ys = np.where(mask == selected_label)
                     min_z, max_z = min(zs), max(zs)
                     z_start = random.randint(min_z, max_z - 1)
@@ -157,8 +157,11 @@ def mask_base_position_2d(mask: Optional[np.ndarray],
                         break
                 except Exception as e:
                     if verbose:
-                        warnings.warn(f"Error in mask_base_position_2d: {crop_labels=} -> {e=}")
+                        warnings.warn(f"Error in mask_base_position_2d: {crop_labels=} with {selected_label=} -> {e=}")
                     continue
+            else:
+                if verbose:
+                    warnings.warn(f"Could not find a valid position for any of the labels {labels} in mask_base_position_2d")
     if not success:
         z_start = random.randint(0, data.shape[0] - 1 - max_slice)
         z_end = random.randint(z_start + 1, min(z_start + 1 + max_slice, data.shape[0]))
