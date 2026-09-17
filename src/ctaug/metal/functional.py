@@ -249,7 +249,7 @@ def simulate_artifacts_unified(data: np.ndarray, implant_specs: List[Dict], spac
                 spacing=spacing,
             )
             if smooth_sigma > 0:
-                mask = gaussian_filter(mask.astype(float), sigma=smooth_sigma) > 0.2
+                mask = (gaussian_filter(mask.astype(float), sigma=smooth_sigma) > 0.2) | mask.astype(bool)
             modified_data[mask] = imp["intensity"]
             final_mask |= mask
 

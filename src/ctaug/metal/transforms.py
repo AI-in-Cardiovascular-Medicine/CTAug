@@ -404,6 +404,12 @@ class CalcificationTransform(DictTransform):
                 verbose=self.verbose,
             )
             if selected_label != -1 or not self.skip_minus_one_selected_label:
+                z_radius_mm_min = round(max(self.spacing[0], 2))
+                z_radius_mm_max = 10 * z_radius_mm_min
+                x_radius_mm_min = max(self.spacing[1], 0.5)
+                y_radius_mm_min = max(self.spacing[2], 0.5)
+                x_radius_mm_max = 5 * x_radius_mm_min
+                y_radius_mm_max = 5 * y_radius_mm_min
                 spec = {
                     "type": "3d",
                     "center_mm": [
@@ -411,9 +417,9 @@ class CalcificationTransform(DictTransform):
                         for index, item in enumerate(center)
                     ],
                     "radius_mm": (
-                        random.randint(2, 10),
-                        random.uniform(0.5, 2),
-                        random.uniform(0.5, 2),
+                        random.randint(z_radius_mm_min, z_radius_mm_max),
+                        random.uniform(x_radius_mm_min, x_radius_mm_max),
+                        random.uniform(y_radius_mm_min, y_radius_mm_max),
                     ),
                     "intensity": sample_value(self.intensity),
                 }
