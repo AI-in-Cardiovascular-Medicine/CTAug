@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ctaug"
-version = "0.1.1"
+version = "0.1.2"
 description = "Cardiac CT-specific data augmentations simulating metal, wire, calcification, and step-and-shoot motion artifacts."
 readme = "README.md"
 requires-python = ">=3.10"
