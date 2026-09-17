@@ -69,7 +69,7 @@ def motion_core(
                 else:
                     image[:, :move_value, cut_off_position:] = val
             else:
-                image = image[:, :image.shape[1] - move_value, :] if move_left else image[:, :move_value, :]
+                image = image[:, :image.shape[1] - move_value, :] if move_left else image[:, move_value:, :]
         elif move_index == 0:
             if move_left:
                 image[:image.shape[0] - move_value, :, cut_off_position:] = image[move_value:, :, cut_off_position:]
@@ -153,17 +153,20 @@ class StepAugmentation:
 
     def __init__(self, cutoff_index: int = -1,
                 cut_off_pixel_value_weight: Union[Tuple[float, float], List[float]] = (0.2, 0.6),
+                mean_pixel_value: Optional[float] = None,
                 normalize: bool = True):
         """
         :param cutoff_index: axis along which the intensity step is introduced.
         :param cut_off_pixel_value_weight: the mean pixel value is calculated then a value between the
             given bounds is randomly chosen and added to one side of the volume.
         :param normalize: whether to rescale the output back to the input's min/max range.
+        "param mean_pixel_value: mean_pixel_value defined by user if the mean of the image is zero!
         """
         assert 0 <= cut_off_pixel_value_weight[0]
         self.cutoff_index = cutoff_index
         self.cut_off_pixel_value_weight = cut_off_pixel_value_weight
         self.normalize = normalize
+        self.mean_pixel_value=mean_pixel_value
 
     def __call__(self, data: np.ndarray):
         image: np.ndarray = data.copy().astype(np.float32)
@@ -171,7 +174,7 @@ class StepAugmentation:
             min_value, max_value = np.min(image), np.max(image)
 
         cut_off_position = random.randint(0, image.shape[self.cutoff_index] - 1)
-        mean_pixel_value = np.mean(image)
+        mean_pixel_value = self.mean_pixel_value if self.mean_pixel_value is not None else np.mean(image)
         intensity_value = random.uniform(self.cut_off_pixel_value_weight[0] * mean_pixel_value,
                                          self.cut_off_pixel_value_weight[1] * mean_pixel_value)
         intensity_value = intensity_value if random.random() < 0.5 else -intensity_value

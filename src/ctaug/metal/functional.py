@@ -19,7 +19,8 @@ def insert_2d_shape_mm(slice_2d: np.ndarray, center_px, radius_mm, spacing, shap
         r_radius, c_radius = radius_mm[0] / spacing[0], radius_mm[1] / spacing[1]
 
     if shape == "circle":
-        mask = (rr - r_center) ** 2 + (cc - c_center) ** 2 <= r_radius ** 2
+        mask = ((rr - r_center) ** 2) / r_radius ** 2 + ((cc - c_center) ** 2) / c_radius ** 2 <= 1
+
     elif shape == "ellipse":
         mask = ((rr - r_center) ** 2) / r_radius ** 2 + ((cc - c_center) ** 2) / c_radius ** 2 <= 1
     elif shape == "rectangle":
@@ -113,7 +114,9 @@ def process_slice(z: int, modified_data: np.ndarray, final_mask: np.ndarray, sev
     return slice_2d.astype(np.float32)
 
 
-def mask_base_position_2d(mask: Optional[np.ndarray], data: np.ndarray, max_slice: int,
+def mask_base_position_2d(mask: Optional[np.ndarray], 
+                          data: np.ndarray,
+                          max_slice: int,
                           exclude_labels: Union[Sequence, int, None] = (0,),
                           include_labels: Union[Sequence, int, None] = None, 
                           verbose: bool = False):
