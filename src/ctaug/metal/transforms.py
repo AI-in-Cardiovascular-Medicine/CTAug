@@ -163,7 +163,7 @@ class MetalTransform(DictTransform):
         data_dict[self.key_target] = data
 
         if self.denormalize_mean is not None and self.denormalize_std is not None:
-            data = (data - self.denormalize_mean ) / self.denormalize_std
+            data = (data - self.denormalize_mean) / self.denormalize_std
         data_dict[self.key_target] = data
         data_dict[f"{self.__class__.__name__}_info"] = dict(
             implant_specs=implant_specs,
@@ -263,19 +263,27 @@ class WireTransform(DictTransform):
                 angle_end = random.uniform(
                     angle_start + np.pi / 5, angle_start + np.pi / 5 + np.pi / 2
                 )
+                
+                # arc_radius_mm = random.randint(5, round(data_shape[0] * 0.2))   # unchanged
+                in_plane_mm = min(data_shape[1] * self.spacing[1], data_shape[2] * self.spacing[2])
+                arc_radius_mm = random.uniform(0.02 * in_plane_mm, 0.10 * in_plane_mm)
+                
+                r_row, r_col = arc_radius_mm / self.spacing[1], arc_radius_mm / self.spacing[2]
+                cy = min(max(center[0], r_row), data_shape[1] - 1 - r_row)
+                cx = min(max(center[1], r_col), data_shape[2] - 1 - r_col)
+                center_mm = [cy * self.spacing[1], cx * self.spacing[2]]
                 spec = {
                     "type": "wire",
                     "length": random.randint(
                         (z_range[1] - z_range[0]) + 1,
                         max([30, (z_range[1] - z_range[0])]) + 10,
                     ),
-                    "center_mm": [
-                        float(item * self.spacing[index + 1])
-                        for index, item in enumerate(center)
-                    ],
-                    "arc_radius_mm": random.randint(
-                        5, max(round(data_shape[0] * 0.2), 10)
-                    ),
+                    "center_mm": center_mm,
+                    #     [
+                    #     float(item * self.spacing[index + 1])
+                    #     for index, item in enumerate(center)
+                    # ],
+                    "arc_radius_mm": arc_radius_mm,
                     "wire_radius_mm": random.uniform(0.01, 0.1),
                     "angle_range": (angle_start, angle_end),
                     "z_range_mm": [item * self.spacing[0] for item in z_range],
@@ -305,7 +313,7 @@ class WireTransform(DictTransform):
             data = data.astype(data_dtype)
 
         if self.denormalize_mean is not None and self.denormalize_std is not None:
-            data = (data - self.denormalize_mean ) / self.denormalize_std
+            data = (data - self.denormalize_mean) / self.denormalize_std
         data_dict[self.key_target] = data
 
         data_dict[f"{self.__class__.__name__}_info"] = dict(
@@ -431,7 +439,6 @@ class CalcificationTransform(DictTransform):
             data = torch.from_numpy(data).to(data_dtype)
         else:
             data = data.astype(data_dtype)
-
 
         if self.denormalize_mean is not None and self.denormalize_std is not None:
             data = (data - self.denormalize_mean) / self.denormalize_std

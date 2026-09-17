@@ -130,8 +130,9 @@ def mask_base_position_2d(mask: Optional[np.ndarray],
     z_start = z_end = None
     selected_label = -1
     labels = []
+    effort_index = -1
     if mask is not None:
-        crop_labels = set(np.unique(mask))
+        crop_labels = set(np.unique(mask).tolist())
         if include_labels is not None:
             labels = (include_labels,) if isinstance(include_labels, int) else list(include_labels)
         elif exclude_labels is not None:
@@ -141,11 +142,13 @@ def mask_base_position_2d(mask: Optional[np.ndarray],
             # no filter given: every label present in the mask is eligible
             labels = list(crop_labels)
         if labels:
-            for _ in range(5):
+            for effort_index in range(5):
                 selected_label = random.choice(labels)
                 try:
                     zs, xs, ys = np.where(mask == selected_label)
                     min_z, max_z = min(zs), max(zs)
+                    if min_z == max_z or min_z == max_z - 1:
+                        continue
                     z_start = random.randint(min_z, max_z - 1)
                     z_end = random.randint(z_start + 1, min(max_z, z_start + 1 + max_slice))
 
@@ -157,18 +160,21 @@ def mask_base_position_2d(mask: Optional[np.ndarray],
                         break
                 except Exception as e:
                     if verbose:
-                        warnings.warn(f"Error in mask_base_position_2d: {crop_labels=} with {selected_label=} -> {e=}")
+                        warnings.warn(f"Effort: {effort_index}:Error in mask_base_position_2d: {crop_labels=} with {selected_label=} -> {e=}")
                     continue
             else:
                 if verbose:
-                    warnings.warn(f"Could not find a valid position for any of the labels {labels} in mask_base_position_2d")
+                    warnings.warn(f"Could not find a valid label after 5 attempts. labels={labels}, crop_labels={crop_labels}, exclude_labels={exclude_labels}, include_labels={include_labels}, effort_index={effort_index}")
+        else:
+            if verbose:
+                warnings.warn(f"Could not find a valid label since they have been excluded. labels={labels}, crop_labels={crop_labels}, exclude_labels={exclude_labels}, include_labels={include_labels}, effort_index={effort_index}")
     if not success:
         z_start = random.randint(0, data.shape[0] - 1 - max_slice)
         z_end = random.randint(z_start + 1, min(z_start + 1 + max_slice, data.shape[0]))
         center = (random.randint(0, data.shape[1] - 1), random.randint(0, data.shape[2] - 1))
         selected_label = -1
         if verbose and mask is not None:
-            warnings.warn("No eligible segmentation label found in mask_base_position_2d, using a random position")
+            warnings.warn(f"No eligible segmentation label found in mask_base_position_2d, using a random position, with effort_index={effort_index}")
     return (z_start, z_end), center, selected_label
 
 
@@ -181,7 +187,7 @@ def mask_base_position_3d(mask: Optional[np.ndarray], data: np.ndarray,
     selected_label = -1
     labels = []
     if mask is not None:
-        crop_labels = set(np.unique(mask))
+        crop_labels = set(np.unique(mask).tolist())
         if include_labels is not None:
             labels = (include_labels,) if isinstance(include_labels, int) else list(include_labels)
         elif exclude_labels is not None:
