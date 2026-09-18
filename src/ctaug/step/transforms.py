@@ -159,6 +159,7 @@ class StepMotionTransform(DictTransform):
             0.6,
         ),
         motion_move_range: Union[Tuple[float, float], List[float]] = (0.01, 0.025),
+        mean_pixel_value: Optional[float] = None,
         normalize: bool = True,
     ):
         self.key_target = key_target
@@ -166,6 +167,7 @@ class StepMotionTransform(DictTransform):
         self.augmentor = StepMotionAugmentation(
             cut_off_pixel_value_weight=cut_off_pixel_value_weight,
             motion_move_range=motion_move_range,
+            mean_pixel_value=mean_pixel_value,
             normalize=normalize,
         )
 

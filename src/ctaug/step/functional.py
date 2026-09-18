@@ -261,18 +261,21 @@ class StepMotionAugmentation:
     def __init__(self,
                 cut_off_pixel_value_weight: Union[Tuple[float, float], List[float]] = (0.2, 0.6),
                 motion_move_range: Union[Tuple[float, float], List[float]] = (0.02, 0.1),
+                mean_pixel_value: Optional[float] = None,
                 normalize: bool = True):
         """
         :param cut_off_pixel_value_weight: the mean pixel value is calculated then a value between the
             given bounds is randomly chosen and added to one side of the volume.
         :param motion_move_range: fraction range (of the move axis extent) by which the shifted
             region is displaced.
+        :param mean_pixel_value: mean_pixel_value defined by user if the mean of the image is zero!
         :param normalize: whether to rescale the output back to the input's min/max range.
         """
         assert 0 <= cut_off_pixel_value_weight[0]
         assert 0 <= motion_move_range[0]
         self.cut_off_pixel_value_weight = cut_off_pixel_value_weight
         self.motion_move_range = motion_move_range
+        self.mean_pixel_value = mean_pixel_value
         self.normalize = normalize
 
     def __call__(self, data: np.ndarray, seg_data: Optional[np.ndarray],
@@ -289,6 +292,7 @@ class StepMotionAugmentation:
             image_min_value, image_max_value = np.min(image), np.max(image)
 
         image_mean_value = float(np.mean(image))
+        step_mean_value = self.mean_pixel_value if self.mean_pixel_value is not None else image_mean_value
         seg_mean_value = 0
         cut_off_position = random.randint(0, image.shape[cutoff_index] - 1)
         img_size = image.shape
@@ -298,8 +302,8 @@ class StepMotionAugmentation:
         end = (start + 1) if end <= start else end
         move_value = random.randint(start, end)
 
-        intensity_value = random.uniform(self.cut_off_pixel_value_weight[0] * image_mean_value,
-                                         self.cut_off_pixel_value_weight[1] * image_mean_value)
+        intensity_value = random.uniform(self.cut_off_pixel_value_weight[0] * step_mean_value,
+                                         self.cut_off_pixel_value_weight[1] * step_mean_value)
         intensity_value = intensity_value if random.random() < 0.5 else -intensity_value
         move_left = random.random() < 0.5
 
@@ -316,5 +320,6 @@ class StepMotionAugmentation:
             image = image * (image_max_value - image_min_value) + image_min_value
 
         info = dict(move_index=move_index, cutoff_index=cutoff_index, cropped_value=cropped_value,
-                    cut_off_position=cut_off_position, move_value=move_value, move_left=move_left)
+                    cut_off_position=cut_off_position, move_value=move_value, move_left=move_left,
+                    intensity_value=float(intensity_value))
         return image, seg, info
